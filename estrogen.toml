@@ -39,5 +39,7 @@ cmd = 'ffmpeg -y -hide_banner -nostats -loglevel error -i "$1" -c:a libopus -b:a
 src = '^(.*)\.(png|jpg)'
 dst = '${1}.jpg'
 # argv syntax is supported, special values @SRC@ and @DST@ are replaced
+# in fact, specifying string 'cmd' as cmd is equivalent to the following:
+# [ '/bin/sh', '-c', 'cmd', 'sh', '@SRC@', '@DST@' ]
 cmd = [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
 

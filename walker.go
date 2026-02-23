@@ -34,10 +34,11 @@ func IsExcluded(entry os.DirEntry) bool {
 	return cfg.Settings.ExcludeByDefault
 }
 
-func HandleDir(ctx context.Context, prefix, name string, paths chan<- Path) {
-	dir := filepath.Join(prefix, name)
-
-	entries, err := os.ReadDir(dir)
+// origin - source path
+// prefix - path relative to origin
+// name - name of current directory we're handling
+func HandleDir(ctx context.Context, origin, dir string, paths chan<- Path) {
+	entries, err := os.ReadDir(filepath.Join(origin, dir))
 	if err != nil {
 		log.Printf("HandleDir: failed to ReadDir: %v", err)
 		return
@@ -51,7 +52,7 @@ func HandleDir(ctx context.Context, prefix, name string, paths chan<- Path) {
 		paths <-Path{dir, entry.Name(), entry.IsDir()}
 
 		if entry.IsDir() {
-			HandleDir(ctx, dir, entry.Name(), paths)
+			HandleDir(ctx, origin, filepath.Join(dir, entry.Name()), paths)
 		}
 	}
 }
@@ -59,6 +60,6 @@ func HandleDir(ctx context.Context, prefix, name string, paths chan<- Path) {
 func Walk(ctx context.Context, origin string, paths chan<- Path) {
 	defer close(paths)
 
-	HandleDir(ctx, origin, ".", paths)
+	HandleDir(ctx, origin, "", paths)
 }
 

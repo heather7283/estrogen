@@ -68,9 +68,7 @@ type Config struct {
 	Rules []Rule `toml:"rule"`
 }
 
-func ParseConfig() (*Config, error) {
-	path := "./estrogen.toml"
-
+func ParseConfig(path string) (*Config, error) {
 	config := Config{
 		Settings: Settings{
 			DeleteRemoved: false,

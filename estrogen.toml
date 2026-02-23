@@ -1,0 +1,42 @@
+# directory to copy files and subdirectories from
+src = '~/music/'
+# this file resides in target directory so it's not specified here
+
+[settings]
+# whether to delete files from dst that disappeared from src
+delete_removed = false
+# whether to copy files not matching any rules as-is
+copy_unmatched = true
+# whether paths not matching any filters are automatically excluded
+exclude_by_default = false
+
+# fitlers are used to exclude directories or files from processing
+[[filter]]
+# name of every file/directory is matched against this regex,
+# directory names have / appended to distinguish them from files
+# if a directory is excluded, all its contents are excluded as well
+exclude = '^(unsorted|yt)/$'
+
+[[filter]]
+# filters are processed in order, the first filter to match wins
+# "include" filters can be used to overwrite broader "exclude" filters
+include = '^README\.txt$'
+
+[[filter]]
+# this will not match README.txt (see above)
+exclude = '^.*\.(txt|log)$'
+
+# rules are used to process files, first matched rule is applied
+[[rule]]
+# capture groups can be used, see https://pkg.go.dev/regexp#Regexp.Expand
+src = '^(.*)\.flac$'
+dst = '${1}.opus'
+# passed to /bin/sh with src and dst as positional arguments
+cmd = 'ffmpeg -y -i "$1" -c:a libopus -b:a 128k "$2"'
+
+[[rule]]
+src = '^(.*)\.(png|jpg)'
+dst = '${1}.jpg'
+# argv syntax is supported, special values @SRC@ and @DST@ are replaced
+cmd =  [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
+

@@ -68,8 +68,21 @@ type Config struct {
 	Rules []Rule `toml:"rule"`
 }
 
+func ExpandHome(path *string) error {
+	if suffix, hasPrefix := strings.CutPrefix(*path, "~/"); hasPrefix {
+		if home, err := os.UserHomeDir(); err != nil {
+			return err
+		} else {
+			*path = filepath.Join(home, suffix)
+		}
+	}
+
+	return nil
+}
+
 func ParseConfig(path string) (*Config, error) {
 	config := Config{
+		Dst: ".",
 		Settings: Settings{
 			DeleteRemoved: false,
 			CopyUnmatched: true,
@@ -79,6 +92,13 @@ func ParseConfig(path string) (*Config, error) {
 		return nil, err
 	} else if undecoded := md.Undecoded(); len(undecoded) > 0 {
 		return nil, fmt.Errorf("unknown key: %s", undecoded[0])
+	}
+
+	if err := ExpandHome(&config.Src); err != nil {
+		return nil, fmt.Errorf("failed to expand src: %v", err)
+	}
+	if err := ExpandHome(&config.Dst); err != nil {
+		return nil, fmt.Errorf("failed to expand dst: %v", err)
 	}
 
 	if suffix, hasPrefix := strings.CutPrefix(config.Src, "~/"); hasPrefix {

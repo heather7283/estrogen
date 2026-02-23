@@ -1,6 +1,7 @@
 # directory to copy files and subdirectories from
 src = '~/music/'
-# this file resides in target directory so it's not specified here
+# if dst is not specified, . (current directory) is used
+dst = '~/transcode/'
 
 [settings]
 # whether to delete files from dst that disappeared from src

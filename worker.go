@@ -9,18 +9,18 @@ import (
 	"strings"
 )
 
-func RunCommand(cmd Command, src, dst string) (*os.Process, error) {
-	newCmd := make([]string, len(cmd))
+func MakeCommand(cmd Command, src, dst string) (*exec.Cmd) {
+	argv := make([]string, len(cmd))
 	for i := range cmd {
 		r := strings.NewReplacer("@SRC@", src, "@DST@", dst)
-		newCmd[i] = r.Replace(cmd[i])
+		argv[i] = r.Replace(cmd[i])
 	}
 
-	if executable, err := exec.LookPath(newCmd[0]); err != nil {
-		return nil, err
-	} else {
-		return os.StartProcess(executable, newCmd, &os.ProcAttr{})
-	}
+	command := exec.Command(argv[0], argv[1:]...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+
+	return command
 }
 
 func MatchRule(name string) (string, Command, bool) {
@@ -87,11 +87,9 @@ func ProcessPath(ctx context.Context, path Path) {
 
 	if !dstExists || srcStat.ModTime().After(dstStat.ModTime()) {
 		log.Printf("Worker: %s -> %s (%s)", srcName, dstName, cmd[0])
-		proc, err := RunCommand(cmd, srcPath, dstPath)
-		if err != nil {
-			log.Printf("ERROR: run %s: %v", cmd[0], err)
-		} else if _, err := proc.Wait(); err != nil {
-			log.Printf("ERROR: command returned: %v", err)
+		command := MakeCommand(cmd, srcPath, dstPath)
+		if err := command.Run(); err != nil {
+			log.Printf("ERROR: %v", err)
 		}
 	}
 }

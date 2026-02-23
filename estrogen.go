@@ -11,17 +11,10 @@ import (
 
 var cfg *Config
 
-func ProcessPath(ctx context.Context, path Path) {
-	switch path.isDir {
-	case true:
-		log.Printf("Got directory: %v", path)
-	case false:
-		log.Printf("Got file: %v", path)
-	}
-}
-
 func main() {
 	var err error
+
+	log.Default().SetFlags(0)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
@@ -47,9 +40,7 @@ func main() {
 	wgDone := make(chan bool)
 	for range numWorkers {
 		wg.Go(func() {
-			for path := range paths {
-				ProcessPath(ctx, path)
-			}
+			Worker(ctx, paths)
 		})
 	}
 	go func() {

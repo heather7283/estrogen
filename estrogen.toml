@@ -7,7 +7,7 @@ dst = '~/transcode/'
 # whether to delete files from dst that disappeared from src
 delete_removed = false
 # whether to copy files not matching any rules as-is
-copy_unmatched = true
+copy_unmatched = false
 # whether paths not matching any filters are automatically excluded
 exclude_by_default = false
 
@@ -33,11 +33,11 @@ exclude = '^.*\.(txt|log)$'
 src = '^(.*)\.flac$'
 dst = '${1}.opus'
 # passed to /bin/sh with src and dst as positional arguments
-cmd = 'ffmpeg -y -i "$1" -c:a libopus -b:a 128k "$2"'
+cmd = 'ffmpeg -y -hide_banner -nostats -loglevel error -i "$1" -c:a libopus -b:a 192k "$2"'
 
 [[rule]]
 src = '^(.*)\.(png|jpg)'
 dst = '${1}.jpg'
 # argv syntax is supported, special values @SRC@ and @DST@ are replaced
-cmd =  [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
+cmd = [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
 

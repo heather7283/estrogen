@@ -17,7 +17,7 @@ func (c *Command) UnmarshalTOML(data any) error {
 
 	switch val := data.(type) {
 	case string:
-		argv = append(argv, "/bin/sh", val, "sh", "@SRC@", "@DST@")
+		argv = append(argv, "/bin/sh", "-c", val, "sh", "@SRC@", "@DST@")
 	case []any:
 		for i, v := range val {
 			if str, isStr := v.(string); isStr {

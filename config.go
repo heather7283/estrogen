@@ -48,6 +48,12 @@ type Filter struct {
 	Re *re.Regexp `toml:"-"`
 }
 
+type Rename struct {
+	Pat string `toml:"pattern"`
+	Rep string `toml:"replacement"`
+	Re *re.Regexp `toml:"-"`
+}
+
 type Rule struct {
 	Src string
 	SrcRe *re.Regexp `toml:"-"`
@@ -65,6 +71,7 @@ type Config struct {
 	Src, Dst string
 	Settings Settings
 	Filters []Filter `toml:"filter"`
+	Renames []Rename `toml:"rename"`
 	Rules []Rule `toml:"rule"`
 }
 
@@ -133,6 +140,15 @@ func ParseConfig(path string) (*Config, error) {
 				f.Type = FilterTypeExclude
 				f.Re = regex
 			}
+		}
+	}
+
+	for i := range config.Renames {
+		r := &config.Renames[i]
+		if regex, err := re.Compile(r.Pat); err != nil {
+			return nil, fmt.Errorf("rule %d: failed to compile pattern regex: %v", i + 1, err)
+		} else {
+			r.Re = regex
 		}
 	}
 

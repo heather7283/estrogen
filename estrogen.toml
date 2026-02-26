@@ -27,6 +27,12 @@ include = '^README\.txt$'
 # this will not match README.txt (see above)
 exclude = '^.*\.(txt|log)$'
 
+[[rename]]
+# renames are applied after filters, but before transcoding rules
+# this rule makes paths usable on android by removing "special" characters
+pattern = '[\?\*\-:"]'
+replacement = '_'
+
 # rules are used to process files, first matched rule is applied
 [[rule]]
 # capture groups can be used, see https://pkg.go.dev/regexp#Regexp.Expand
@@ -39,7 +45,7 @@ cmd = 'ffmpeg -y -hide_banner -nostats -loglevel error -i "$1" -c:a libopus -b:a
 src = '^(.*)\.(png|jpg)'
 dst = '${1}.jpg'
 # argv syntax is supported, special values @SRC@ and @DST@ are replaced
-# in fact, specifying string 'cmd' as cmd is equivalent to the following:
-# [ '/bin/sh', '-c', 'cmd', 'sh', '@SRC@', '@DST@' ]
+# in fact, specifying string 'command' as cmd is equivalent to the following:
+# cmd = [ '/bin/sh', '-c', 'command', 'sh', '@SRC@', '@DST@' ]
 cmd = [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
 

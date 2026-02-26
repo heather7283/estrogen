@@ -36,7 +36,8 @@ func main() {
 		log.Printf("Loaded config from %s", configPath)
 		log.Printf("Src dir: %s", cfg.Src)
 		log.Printf("Dst dir: %s", cfg.Dst)
-		log.Printf("Loaded %d filters, %d rules", len(cfg.Filters), len(cfg.Rules))
+		log.Printf("Loaded %d filters, %d renames, %d rules",
+			len(cfg.Filters), len(cfg.Renames), len(cfg.Rules))
 		log.Printf("Settings: delete_removed=%v copy_unmatched=%v exclude_by_default=%v",
 			cfg.Settings.DeleteRemoved, cfg.Settings.CopyUnmatched, cfg.Settings.ExcludeByDefault)
 

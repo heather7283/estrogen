@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
+	"os"
 	"os/signal"
 	"runtime"
 	"sync"
@@ -14,11 +16,20 @@ var cfg *Config
 func main() {
 	var err error
 
+	// command line arguments
+	var (
+		validateConfig bool = false
+		configPath string = "./estrogen.toml"
+	)
+
+	flag.BoolVar(&validateConfig, "validate", false, "Validate config and exit")
+	flag.StringVar(&configPath, "config", "./estrogen.toml", "Path to config .toml")
+	flag.Parse()
+
 	log.Default().SetFlags(0)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	configPath := "./estrogen.toml"
 	if cfg, err = ParseConfig(configPath); err != nil {
 		log.Fatalf("Error parsing config: %v", err)
 	} else {
@@ -28,6 +39,10 @@ func main() {
 		log.Printf("Loaded %d filters, %d rules", len(cfg.Filters), len(cfg.Rules))
 		log.Printf("Settings: delete_removed=%v copy_unmatched=%v exclude_by_default=%v",
 			cfg.Settings.DeleteRemoved, cfg.Settings.CopyUnmatched, cfg.Settings.ExcludeByDefault)
+
+		if (validateConfig) {
+			os.Exit(0)
+		}
 	}
 
 	numWorkers := runtime.NumCPU()

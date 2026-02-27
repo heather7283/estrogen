@@ -88,9 +88,37 @@ func (f *Filter) UnmarshalTOML(_data any) error {
 }
 
 type Rename struct {
-	Pat string `toml:"pattern"`
-	Rep string `toml:"replacement"`
-	Re *re.Regexp `toml:"-"`
+	Pattern *re.Regexp
+	Replacement string
+}
+
+func (r *Rename) UnmarshalTOML(_data any) error {
+	data, ok := _data.(map[string]any)
+	if !ok {
+		return fmt.Errorf("unexpected rename value type: %T", _data)
+	} else if len(data) > 2 {
+		return fmt.Errorf("too many keys, expected pattern and replacement")
+	}
+
+	if _pattern, ok := data["pattern"]; !ok {
+		return fmt.Errorf("pattern not found")
+	} else if pattern, ok := _pattern.(string); !ok {
+		return fmt.Errorf("pattern should be a string")
+	} else if re, err := re.Compile(pattern); err != nil {
+		return err
+	} else {
+		r.Pattern = re
+	}
+
+	if _replacement, ok := data["replacement"]; !ok {
+		return fmt.Errorf("replacement not found")
+	} else if replacement, ok := _replacement.(string); !ok {
+		return fmt.Errorf("replacement should be a string")
+	} else {
+		r.Replacement = replacement
+	}
+
+	return nil
 }
 
 type Rule struct {
@@ -152,15 +180,6 @@ func ParseConfig(path string) (*Config, error) {
 			return nil, fmt.Errorf("failed to expand src: %v", err)
 		} else {
 			config.Src = filepath.Join(home, suffix)
-		}
-	}
-
-	for i := range config.Renames {
-		r := &config.Renames[i]
-		if regex, err := re.Compile(r.Pat); err != nil {
-			return nil, fmt.Errorf("rule %d: failed to compile pattern regex: %v", i + 1, err)
-		} else {
-			r.Re = regex
 		}
 	}
 

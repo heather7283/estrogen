@@ -10,30 +10,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Command []string
-
-func (c *Command) UnmarshalTOML(data any) error {
-	var argv []string
-
-	switch val := data.(type) {
-	case string:
-		argv = append(argv, "/bin/sh", "-c", val, "sh", "@SRC@", "@DST@")
-	case []any:
-		for i, v := range val {
-			if str, isStr := v.(string); isStr {
-				argv = append(argv, str)
-			} else {
-				return fmt.Errorf("cmd array elements should be strings, got %T at %d", v, i)
-			}
-		}
-	default:
-		return fmt.Errorf("cmd should be either string or array of string, got %T", val)
-	}
-
-	*c = argv
-	return nil
-}
-
 type FilterType int
 
 const (
@@ -122,10 +98,55 @@ func (r *Rename) UnmarshalTOML(_data any) error {
 }
 
 type Rule struct {
-	Src string
-	SrcRe *re.Regexp `toml:"-"`
+	Src *re.Regexp
 	Dst string
-	Cmd Command
+	Cmd []string
+}
+
+func (r *Rule) UnmarshalTOML(_data any) error {
+	data, ok := _data.(map[string]any)
+	if !ok {
+		return fmt.Errorf("unexpected rename value type: %T", _data)
+	} else if len(data) > 3 {
+		return fmt.Errorf("too many keys, expected src, dst and cmd")
+	}
+
+	if _src, ok := data["src"]; !ok {
+		return fmt.Errorf("src not found")
+	} else if src, ok := _src.(string); !ok {
+		return fmt.Errorf("src should be a string")
+	} else if re, err := re.Compile(src); err != nil {
+		return err
+	} else {
+		r.Src = re
+	}
+
+	if _dst, ok := data["dst"]; !ok {
+		return fmt.Errorf("dst not found")
+	} else if dst, ok := _dst.(string); !ok {
+		return fmt.Errorf("dst should be a string")
+	} else {
+		r.Dst = dst
+	}
+
+	if _cmd, ok := data["cmd"]; !ok {
+		return fmt.Errorf("cmd not found")
+	} else if cmdStr, ok := _cmd.(string); ok {
+		r.Cmd = []string{"/bin/sh", "-c", cmdStr, "sh", "@SRC@", "@DST@"}
+	} else if cmdArr, ok := _cmd.([]any); ok {
+		cmd := make([]string, len(cmdArr))
+		for i, e := range cmdArr {
+			if str, ok := e.(string); ok {
+				cmd[i] = str
+			} else {
+				return fmt.Errorf("cmd array elements should be strings, got %T at %d", e, i)
+			}
+		}
+	} else {
+		return fmt.Errorf("cmd should be either string or array of strings, got %T", _cmd)
+	}
+
+	return nil
 }
 
 type Settings struct {
@@ -180,19 +201,6 @@ func ParseConfig(path string) (*Config, error) {
 			return nil, fmt.Errorf("failed to expand src: %v", err)
 		} else {
 			config.Src = filepath.Join(home, suffix)
-		}
-	}
-
-	for i := range config.Rules {
-		r := &config.Rules[i]
-		if regex, err := re.Compile(r.Src); err != nil {
-			return nil, fmt.Errorf("rule %d: failed to compile src regex: %v", i + 1, err)
-		} else if len(r.Dst) < 1 {
-			return nil, fmt.Errorf("rule %d: empty dst pattern", i + 1)
-		} else if len(r.Cmd) < 1 {
-			return nil, fmt.Errorf("rule %d: empty command", i + 1)
-		} else {
-			r.SrcRe = regex
 		}
 	}
 

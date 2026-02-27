@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func MakeCommand(cmd Command, src, dst string) (*exec.Cmd) {
+func MakeCommand(cmd []string, src, dst string) (*exec.Cmd) {
 	argv := make([]string, len(cmd))
 	for i := range cmd {
 		r := strings.NewReplacer("@SRC@", src, "@DST@", dst)
@@ -23,11 +23,11 @@ func MakeCommand(cmd Command, src, dst string) (*exec.Cmd) {
 	return command
 }
 
-func MatchRule(name string) (string, Command, bool) {
+func MatchRule(name string) (string, []string, bool) {
 	for _, rule := range cfg.Rules {
-		for _, submatches := range rule.SrcRe.FindAllStringSubmatchIndex(name, -1) {
+		for _, submatches := range rule.Src.FindAllStringSubmatchIndex(name, -1) {
 			var newName []byte
-			newName = rule.SrcRe.ExpandString(newName, rule.Dst, name, submatches)
+			newName = rule.Src.ExpandString(newName, rule.Dst, name, submatches)
 			return string(newName), rule.Cmd, true
 		}
 	}
@@ -60,7 +60,7 @@ func ProcessPath(ctx context.Context, path Path) {
 		}
 		dstName = path.name
 		// TODO: handle this in go
-		cmd = Command{"cp", "@SRC@", "@DST@"}
+		cmd = []string{"cp", "@SRC@", "@DST@"}
 	}
 
 	//srcExists := true

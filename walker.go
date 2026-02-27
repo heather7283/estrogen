@@ -19,7 +19,7 @@ func IsExcluded(entry os.DirEntry) bool {
 			name += "/"
 		}
 
-		if !filter.Re.MatchString(name) {
+		if !filter.Regex.MatchString(name) {
 			continue
 		}
 

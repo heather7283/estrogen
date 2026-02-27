@@ -42,10 +42,49 @@ const (
 )
 
 type Filter struct {
-	// Include and Exclude are mutually exclusive
-	Exclude, Include *string
-	Type FilterType `toml:"-"`
-	Re *re.Regexp `toml:"-"`
+	Type FilterType
+	Regex *re.Regexp
+}
+
+func (f *Filter) UnmarshalTOML(_data any) error {
+	data, ok := _data.(map[string]any)
+	if !ok {
+		return fmt.Errorf("unexpected filter value type: %T", _data)
+	} else if len(data) != 1 {
+		return fmt.Errorf("exactly one of include, exclude must be specified")
+	}
+
+	var (
+		filterType FilterType
+		regexStr string
+	)
+	if v, ok := data["include"]; ok {
+		filterType = FilterTypeInclude
+		regexStr, ok = v.(string)
+		if !ok {
+			return fmt.Errorf("unexpected include value type: expected string, got %T", v)
+		}
+	} else if v, ok := data["exclude"]; ok {
+		filterType = FilterTypeExclude
+		regexStr, ok = v.(string)
+		if !ok {
+			return fmt.Errorf("unexpected exclude value type: expected string, got %T", v)
+		}
+	} else {
+		return fmt.Errorf("exactly one of include, exclude must be specified")
+	}
+
+	filterRegex, err := re.Compile(regexStr)
+	if err != nil {
+		return err
+	}
+
+	*f = Filter{
+		Type: filterType,
+		Regex: filterRegex,
+	}
+
+	return nil
 }
 
 type Rename struct {
@@ -113,33 +152,6 @@ func ParseConfig(path string) (*Config, error) {
 			return nil, fmt.Errorf("failed to expand src: %v", err)
 		} else {
 			config.Src = filepath.Join(home, suffix)
-		}
-	}
-
-	for i := range config.Filters {
-		f := &config.Filters[i]
-		hasInclude := f.Include != nil
-		hasExclude := f.Exclude != nil
-		if !((hasInclude && !hasExclude) || (!hasInclude && hasExclude)) {
-			return nil, fmt.Errorf("filter %d: both include and exclude patterns specified", i + 1)
-		} else if hasInclude {
-			if len(*f.Include) < 1 {
-				return nil, fmt.Errorf("filter %d: empty include pattern", i + 1)
-			} else if regex, err := re.Compile(*f.Include); err != nil {
-				return nil, fmt.Errorf("filter %d: %v", i + 1, err)
-			} else {
-				f.Type = FilterTypeInclude
-				f.Re = regex
-			}
-		} else if hasExclude {
-			if len(*f.Exclude) < 1 {
-				return nil, fmt.Errorf("filter %d: empty exclude pattern", i + 1)
-			} else if regex, err := re.Compile(*f.Exclude); err != nil {
-				return nil, fmt.Errorf("filter %d: %v", i + 1, err)
-			} else {
-				f.Type = FilterTypeExclude
-				f.Re = regex
-			}
 		}
 	}
 

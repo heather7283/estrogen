@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&configPath, "config", "./estrogen.toml", "Path to config .toml")
 	flag.Parse()
 
-	log.Default().SetFlags(0)
+	log.Default().SetFlags(log.Lshortfile)
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 

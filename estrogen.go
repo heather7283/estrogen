@@ -36,6 +36,22 @@ func main() {
 		log.Printf("Loaded config from %s", configPath)
 		log.Printf("Src dir: %s", cfg.Src)
 		log.Printf("Dst dir: %s", cfg.Dst)
+
+		log.Printf("Loaded %d filters:", len(cfg.Filters))
+		for i, filter := range cfg.Filters {
+			log.Printf("\t%d: type: %v, pattern: %s", i, filter.Type, filter.Regex.String())
+		}
+
+		log.Printf("Loaded %d renames:", len(cfg.Renames))
+		for i, rename := range cfg.Renames {
+			log.Printf("\t%d: pattern: %s, replacement: %s", i, rename.Pattern, rename.Replacement)
+		}
+
+		log.Printf("Loaded %d rules:", len(cfg.Rules))
+		for i, rule := range cfg.Rules {
+			log.Printf("\t%d: src: %s, dst: %s, cmd: %v", i, rule.Src.String(), rule.Dst, rule.Cmd)
+		}
+
 		log.Printf("Loaded %d filters, %d renames, %d rules",
 			len(cfg.Filters), len(cfg.Renames), len(cfg.Rules))
 		log.Printf("Settings: delete_removed=%v copy_unmatched=%v exclude_by_default=%v",

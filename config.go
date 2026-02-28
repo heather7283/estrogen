@@ -134,10 +134,10 @@ func (r *Rule) UnmarshalTOML(_data any) error {
 	} else if cmdStr, ok := _cmd.(string); ok {
 		r.Cmd = []string{"/bin/sh", "-c", cmdStr, "sh", "@SRC@", "@DST@"}
 	} else if cmdArr, ok := _cmd.([]any); ok {
-		cmd := make([]string, len(cmdArr))
+		r.Cmd = make([]string, len(cmdArr))
 		for i, e := range cmdArr {
 			if str, ok := e.(string); ok {
-				cmd[i] = str
+				r.Cmd[i] = str
 			} else {
 				return fmt.Errorf("cmd array elements should be strings, got %T at %d", e, i)
 			}

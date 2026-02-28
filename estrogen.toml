@@ -29,11 +29,11 @@ exclude = '^.*\.(txt|log)$'
 
 [[rename]]
 # renames are applied after filters, but before transcoding rules
-# this rule makes paths usable on android by removing "special" characters
+# this one makes paths compatible with android by removing "special" characters
 pattern = '[\?\*\-:"]'
 replacement = '_'
 
-# rules are used to process files, first matched rule is applied
+# rules are matched against filenames post rename, first matched rule is applied
 [[rule]]
 # capture groups can be used, see https://pkg.go.dev/regexp#Regexp.Expand
 src = '^(.*)\.flac$'

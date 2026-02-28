@@ -52,10 +52,10 @@ func main() {
 			log.Printf("\t%d: src: %s, dst: %s, cmd: %v", i, rule.Src.String(), rule.Dst, rule.Cmd)
 		}
 
-		log.Printf("Loaded %d filters, %d renames, %d rules",
-			len(cfg.Filters), len(cfg.Renames), len(cfg.Rules))
-		log.Printf("Settings: delete_removed=%v copy_unmatched=%v exclude_by_default=%v",
-			cfg.Settings.DeleteRemoved, cfg.Settings.CopyUnmatched, cfg.Settings.ExcludeByDefault)
+		log.Printf("Settings:")
+		log.Printf("\tdelete_removed: %v", cfg.Settings.DeleteRemoved)
+		log.Printf("\tcopy_unmatched: %v", cfg.Settings.CopyUnmatched)
+		log.Printf("\texclude_by_default: %v", cfg.Settings.ExcludeByDefault)
 
 		if (validateConfig) {
 			os.Exit(0)

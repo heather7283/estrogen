@@ -156,6 +156,7 @@ type Settings struct {
 }
 
 type Config struct {
+	ConfigFileName string `toml:"-"`
 	Src, Dst string
 	Settings Settings
 	Filters []Filter `toml:"filter"`
@@ -179,6 +180,7 @@ func ParseConfig(path string) (*Config, error) {
 	var err error
 
 	config := Config{
+		ConfigFileName: filepath.Base(path),
 		Dst: ".",
 		Settings: Settings{
 			DeleteRemoved: false,

@@ -30,7 +30,7 @@ exclude = '^.*\.(txt|log)$'
 [[rename]]
 # renames are applied after filters, but before transcoding rules
 # this one makes paths compatible with android by removing "special" characters
-pattern = '[\?\*\-:"]'
+pattern = '[\?\*:"]'
 replacement = '_'
 
 # rules are matched against filenames post rename, first matched rule is applied

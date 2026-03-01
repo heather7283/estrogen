@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	//"runtime"
+	"runtime"
 	"sync"
 	"syscall"
 )
@@ -62,18 +62,18 @@ func main() {
 		}
 	}
 
-	//numWorkers := runtime.NumCPU()
-	numWorkers := 1
+	numWorkers := runtime.NumCPU()
+	//numWorkers := 1
 
-	dirsChan := make(chan Dir, numWorkers)
+	opsChan := make(chan Operation, numWorkers)
 
-	go Walker(ctx, cfg.Src, dirsChan)
+	go Walker(ctx, cfg.Src, opsChan)
 
 	wg := sync.WaitGroup{}
 	wgDone := make(chan bool)
 	for range numWorkers {
 		wg.Go(func() {
-			Worker(ctx, dirsChan)
+			Worker(ctx, opsChan)
 		})
 	}
 	go func() {

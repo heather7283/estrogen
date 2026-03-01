@@ -2,12 +2,27 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+type opType int
+
+const (
+	opTypeCopy opType = iota
+	opTypeDelete opType = iota
+	opTypeConvert opType = iota
+)
+
+type Operation struct {
+	opType opType
+	srcPath, dstPath string
+	command []string
+}
 
 func makeCommand(cmd []string, src, dst string) *exec.Cmd {
 	argv := make([]string, len(cmd))
@@ -23,79 +38,67 @@ func makeCommand(cmd []string, src, dst string) *exec.Cmd {
 	return command
 }
 
-func findRule(name string) (newName string, cmd []string, found bool) {
-	for _, rule := range cfg.Rules {
-		for _, submatches := range rule.Src.FindAllStringSubmatchIndex(name, -1) {
-			var newName []byte
-			newName = rule.Src.ExpandString(newName, rule.Dst, name, submatches)
-			return string(newName), rule.Cmd, true
-		}
-	}
+func handleOp(ctx context.Context, op Operation) {
+	switch op.opType {
+	case opTypeConvert:
+		log.Printf("CONV: %s -> %s",
+			strings.TrimPrefix(op.srcPath, cfg.Src), strings.TrimPrefix(op.dstPath, cfg.Dst))
 
-	return "", nil, false
-}
-
-func ProcessDir(ctx context.Context, dir Dir) {
-	dstPathAbs := filepath.Join(cfg.Dst, dir.dstPath)
-	srcPathAbs := filepath.Join(cfg.Src, dir.srcPath)
-
-	if err := os.MkdirAll(dstPathAbs, 0o700); err != nil {
-		log.Printf("ERROR: Could not mkdir %s: %v", dstPathAbs, err)
-		return
-	}
-
-	for _, entry := range dir.entries {
-		if entry.isDir {
-			continue
-		}
-
-		var (
-			dstName string
-			command []string
-		)
-		if _dstName, _command, hasRule := findRule(entry.dstName); hasRule {
-			dstName = _dstName
-			command = _command
-		} else if cfg.Settings.CopyUnmatched {
-			dstName = entry.dstName
-			// TODO: handle this in go
-			command = []string{"cp", "@SRC@", "@DST@"}
-		} else {
-			continue
-		}
-
-		srcNameAbs := filepath.Join(srcPathAbs, entry.srcName)
-		dstNameAbs := filepath.Join(dstPathAbs, dstName)
-
-		srcStat, err := os.Stat(srcNameAbs)
-		if err != nil {
-			log.Printf("ERROR: Could not stat %s: %v", srcNameAbs, err)
+		dir := filepath.Dir(op.dstPath)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			log.Printf("ERROR: failed to create directory %s: %v", dir, err)
 			return
 		}
 
-		dstExists := true
-		dstStat, err := os.Stat(dstNameAbs)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				log.Printf("ERROR: Could not stat %s: %v", dstNameAbs, err)
-				return
-			}
-			dstExists = false
+		command := makeCommand(op.command, op.srcPath, op.dstPath)
+		if err := command.Run(); err != nil {
+			log.Printf("ERROR: %v", err)
+			return
+		}
+	case opTypeCopy:
+		log.Printf("COPY: %s -> %s",
+			strings.TrimPrefix(op.srcPath, cfg.Src), strings.TrimPrefix(op.dstPath, cfg.Dst))
+
+		dir := filepath.Dir(op.dstPath)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			log.Printf("ERROR: failed to create directory %s: %v", dir, err)
+			return
 		}
 
-		if !dstExists || srcStat.ModTime().After(dstStat.ModTime()) {
-			log.Printf("CONV: %s -> %s", entry.srcName, dstName)
-			command := makeCommand(command, srcNameAbs, dstNameAbs)
-			if err := command.Run(); err != nil {
-				log.Printf("ERROR: %v", err)
+		srcFile, err := os.Open(op.srcPath)
+		if err != nil {
+			log.Printf("ERROR: failed to open %s: %v", op.srcPath, err)
+			return
+		}
+		defer srcFile.Close()
+
+		dstFile, err := os.Create(op.dstPath)
+		if err != nil {
+			log.Printf("ERROR: failed to create %s: %v", op.dstPath, err)
+			return
+		}
+		defer dstFile.Close()
+
+		if _, err = io.Copy(dstFile, srcFile); err != nil {
+			log.Printf("ERROR: failed to copy from %s to %s: %v", op.srcPath, op.dstPath, err)
+			if err := os.Remove(op.dstPath); err != nil {
+				log.Printf("ERROR: failed to delete %s: %v", op.dstPath, err)
 			}
+			return
+		}
+	case opTypeDelete:
+		log.Printf(" DEL: %s", strings.TrimPrefix(op.dstPath, cfg.Dst))
+
+		if err := os.RemoveAll(op.dstPath); err != nil {
+			log.Printf("ERROR: failed to delete %s: %v", op.dstPath, err)
+			return
 		}
 	}
 }
 
-func Worker(ctx context.Context, dirsChan <-chan Dir) {
-	for dir := range dirsChan {
-		ProcessDir(ctx, dir)
+func Worker(ctx context.Context, opsChan <-chan Operation) {
+	for dir := range opsChan {
+		handleOp(ctx, dir)
 	}
 }
 

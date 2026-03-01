@@ -2,22 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	fp "path/filepath"
-	"slices"
 	"strings"
 )
-
-type Dir struct {
-	srcPath, dstPath string // relative
-	entries []DirEntry
-}
-
-type DirEntry struct {
-	srcName, dstName string
-	isDir bool
-}
 
 func isFiltered(entry os.DirEntry) bool {
 	for _, filter := range cfg.Filters {
@@ -48,11 +38,43 @@ func applyRenames(name string) string {
 	return name
 }
 
-// origin - source path
-// prefix - path relative to origin
-// name - name of current directory we're handling
-func HandleDir(ctx context.Context, srcPath, dstPath string, dirsChan chan<- Dir) {
+func findRule(name string) (newName string, cmd []string, found bool) {
+	for _, rule := range cfg.Rules {
+		for _, submatches := range rule.Src.FindAllStringSubmatchIndex(name, -1) {
+			var newName []byte
+			newName = rule.Src.ExpandString(newName, rule.Dst, name, submatches)
+			return string(newName), rule.Cmd, true
+		}
+	}
+
+	return name, nil, false
+}
+
+func isOlderThan(path, reference string) (bool, error) {
+	refStat, err := os.Stat(reference)
+	if err != nil {
+		return false, fmt.Errorf("Could not stat %s: %v", reference, err)
+	}
+
+	pathExists := true
+	pathStat, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return false, fmt.Errorf("ERROR: Could not stat %s: %v", path, err)
+		}
+		pathExists = false
+	}
+
+	if !pathExists || refStat.ModTime().After(pathStat.ModTime()) {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
+func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Operation) {
 	srcPathAbs := fp.Join(cfg.Src, srcPath)
+	dstPathAbs := fp.Join(cfg.Dst, dstPath)
 
 	entries, err := os.ReadDir(srcPathAbs)
 	if err != nil {
@@ -60,10 +82,12 @@ func HandleDir(ctx context.Context, srcPath, dstPath string, dirsChan chan<- Dir
 		return
 	}
 
-	renamedDirs := make([]DirEntry, 0, len(entries))
-	renamedFiles := make([]DirEntry, 0, len(entries))
+	type dirInfo struct { srcPath, dstPath string }
+	dirs := make([]dirInfo, 0)
 
-	// indexed by new name, using a map to catch duplicate names
+	ops := make([]Operation, 0)
+
+	// for finding duplicates, srcName = dstNames[dstName]
 	dstNames := make(map[string]string)
 	for _, entry := range entries {
 		if isFiltered(entry) {
@@ -72,40 +96,100 @@ func HandleDir(ctx context.Context, srcPath, dstPath string, dirsChan chan<- Dir
 
 		srcName := entry.Name()
 		dstName := applyRenames(srcName)
+
+		if entry.IsDir() {
+			if len(dstName) == 0 {
+				fmt.Printf("ERROR: empty dir name after rename (was %s)", srcName)
+				return
+			} else if strings.ContainsRune(dstName, '/') {
+				fmt.Printf("ERROR: invalid dir name after rename: %s (was %s)", dstName, srcName)
+				return
+			} else if srcName2, exists := dstNames[dstName]; exists {
+				log.Printf("ERROR: duplicate dir name after rename: %s (1st was %s, 2nd was %s)",
+					dstName, srcName, srcName2)
+				return
+			} else {
+				append2(&dirs, dirInfo{fp.Join(srcPath, srcName), fp.Join(dstPath, dstName)})
+				dstNames[dstName] = srcName
+				continue
+			}
+		}
+
+		dstName, command, hasRule := findRule(dstName)
 		if len(dstName) == 0 {
-			log.Printf("ERROR: empty name after rename, was %s", srcName)
+			fmt.Printf("ERROR: empty file name after applying rule (was %s)", srcName)
 			return
 		} else if strings.ContainsRune(dstName, '/') {
-			log.Printf("ERROR: invalid name after rename: %s (was %s)", dstName, srcName)
+			fmt.Printf("ERROR: invalid file name after applying rule: %s (was %s)",
+				dstName, srcName)
 			return
 		} else if srcName2, exists := dstNames[dstName]; exists {
-			log.Printf("ERROR: duplicate name after rename: %s (1st was %s, 2nd was %s)",
+			log.Printf("ERROR: duplicate file name after applying rule: %s (1st was %s, 2nd %s)",
 				dstName, srcName, srcName2)
 			return
 		} else {
 			dstNames[dstName] = srcName
-			if entry.IsDir() {
-				append2(&renamedDirs, DirEntry{srcName: srcName, dstName: dstName, isDir: true})
+		}
+
+		op := Operation{
+			srcPath: fp.Join(srcPathAbs, srcName),
+			dstPath: fp.Join(dstPathAbs, dstName),
+		}
+		if hasRule {
+			if isOlder, err := isOlderThan(op.dstPath, op.srcPath); err != nil {
+				log.Printf("ERROR: %v", err)
+				continue
+			} else if isOlder {
+				op.opType = opTypeConvert
+				op.command = command
 			} else {
-				append2(&renamedFiles, DirEntry{srcName: srcName, dstName: dstName, isDir: false})
+				continue
+			}
+		} else if cfg.Settings.CopyUnmatched {
+			if isOlder, err := isOlderThan(op.dstPath, op.srcPath); err != nil {
+				log.Printf("ERROR: %v", err)
+				continue
+			} else if isOlder {
+				op.opType = opTypeCopy
+			} else {
+				continue
+			}
+		} else {
+			continue
+		}
+
+		append2(&ops, op)
+	}
+
+	if cfg.Settings.DeleteRemoved {
+		if dstEntries, err := os.ReadDir(dstPathAbs); err != nil {
+			if !os.IsNotExist(err) {
+				log.Printf("ERROR: failed to ReadDir %s: %v", dstPathAbs, err)
+			}
+		} else {
+			for _, dstEntry := range dstEntries {
+				if _, exists := dstNames[dstEntry.Name()]; !exists {
+					append2(&ops, Operation{
+						opType: opTypeDelete,
+						dstPath: fp.Join(dstPathAbs, dstEntry.Name()),
+					})
+				}
 			}
 		}
 	}
 
-	for _, dir := range renamedDirs {
-		HandleDir(ctx, fp.Join(srcPath, dir.srcName), fp.Join(dstPath, dir.dstName), dirsChan)
+	for _, op := range ops {
+		opsChan <- op
 	}
 
-	dirsChan <- Dir{
-		srcPath: srcPath,
-		dstPath: dstPath,
-		entries: slices.Concat(renamedDirs, renamedFiles),
+	for _, dir := range dirs {
+		handleDir(ctx, dir.srcPath, dir.dstPath, opsChan)
 	}
 }
 
-func Walker(ctx context.Context, origin string, dirChan chan<- Dir) {
-	defer close(dirChan)
+func Walker(ctx context.Context, origin string, opsChan chan<- Operation) {
+	defer close(opsChan)
 
-	HandleDir(ctx, "", "", dirChan)
+	handleDir(ctx, "", "", opsChan)
 }
 

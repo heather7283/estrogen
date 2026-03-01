@@ -153,6 +153,7 @@ type Settings struct {
 	DeleteRemoved bool `toml:"delete_removed"`
 	CopyUnmatched bool `toml:"copy_unmatched"`
 	ExcludeByDefault bool `toml:"exclude_by_default"`
+	PreserveConfigFile bool `toml:"preserve_config_file"`
 }
 
 type Config struct {
@@ -185,6 +186,8 @@ func ParseConfig(path string) (*Config, error) {
 		Settings: Settings{
 			DeleteRemoved: false,
 			CopyUnmatched: true,
+			ExcludeByDefault: false,
+			PreserveConfigFile: true,
 		},
 	}
 	if md, err := toml.DecodeFile(path, &config); err != nil {

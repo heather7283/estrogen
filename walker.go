@@ -164,7 +164,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 		} else {
 			for _, dstEntry := range dstEntries {
 				name := dstEntry.Name()
-				if name == cfg.ConfigFileName {
+				if cfg.Settings.PreserveConfigFile && name == cfg.ConfigFileName {
 					continue
 				} else if _, exists := dstNames[name]; !exists {
 					append2(&ops, makeDeleteOp(fp.Join(dstPathAbs, name)))

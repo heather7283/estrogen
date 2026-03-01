@@ -15,8 +15,8 @@ type copyOperation struct {
 func (o copyOperation) Perform(ctx context.Context) error {
 	log.Printf("COPY %s -> %s", fp.Base(o.src), fp.Base(o.dst))
 
-	dir := fp.Dir(o.dst)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	dstDir := fp.Dir(o.dst)
+	if err := os.MkdirAll(dstDir, 0o700); err != nil {
 		return err
 	}
 
@@ -26,13 +26,18 @@ func (o copyOperation) Perform(ctx context.Context) error {
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.Create(o.dst)
+	tmpFile, err := tmpfile(dstDir, fp.Base(o.dst))
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
 
-	if _, err = io.Copy(dstFile, srcFile); err != nil {
+	if _, err = io.Copy(tmpFile, srcFile); err != nil {
+		return err
+	}
+
+	if err := os.Rename(tmpFile.Name(), o.dst); err != nil {
 		return err
 	}
 

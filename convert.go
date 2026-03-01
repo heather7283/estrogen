@@ -31,13 +31,24 @@ func makeCommand(cmd []string, src, dst string) *exec.Cmd {
 func (o convertOperation) Perform(ctx context.Context) error {
 	log.Printf("CONV %s -> %s", fp.Base(o.src), fp.Base(o.dst))
 
-	dir := fp.Dir(o.dst)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	dstDir := fp.Dir(o.dst)
+	if err := os.MkdirAll(dstDir, 0o700); err != nil {
 		return err
 	}
 
-	cmd := makeCommand(o.cmd, o.src, o.dst)
+	tmpFile, err := tmpfile(dstDir, fp.Base(o.dst))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	cmd := makeCommand(o.cmd, o.src, tmpFile.Name())
 	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	if err := os.Rename(tmpFile.Name(), o.dst); err != nil {
 		return err
 	}
 

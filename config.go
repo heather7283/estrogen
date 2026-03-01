@@ -196,14 +196,6 @@ func ParseConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to expand dst: %v", err)
 	}
 
-	if suffix, hasPrefix := strings.CutPrefix(config.Src, "~/"); hasPrefix {
-		if home, err := os.UserHomeDir(); err != nil {
-			return nil, fmt.Errorf("failed to expand src: %v", err)
-		} else {
-			config.Src = filepath.Join(home, suffix)
-		}
-	}
-
 	return &config, nil
 }
 

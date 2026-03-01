@@ -131,34 +131,29 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 			dstNames[dstName] = srcName
 		}
 
-		op := Operation{
-			srcPath: fp.Join(srcPathAbs, srcName),
-			dstPath: fp.Join(dstPathAbs, dstName),
-		}
+		src := fp.Join(srcPathAbs, srcName)
+		dst := fp.Join(dstPathAbs, dstName)
 		if hasRule {
-			if isOlder, err := isOlderThan(op.dstPath, op.srcPath); err != nil {
+			if isOlder, err := isOlderThan(dst, src); err != nil {
 				log.Printf("ERROR: %v", err)
 				continue
 			} else if isOlder {
-				op.opType = opTypeConvert
-				op.command = command
+				append2(&ops, makeConvertOp(src, dst, command))
 			} else {
 				continue
 			}
 		} else if cfg.Settings.CopyUnmatched {
-			if isOlder, err := isOlderThan(op.dstPath, op.srcPath); err != nil {
+			if isOlder, err := isOlderThan(dst, src); err != nil {
 				log.Printf("ERROR: %v", err)
 				continue
 			} else if isOlder {
-				op.opType = opTypeCopy
+				append2(&ops, makeCopyOp(src, dst))
 			} else {
 				continue
 			}
 		} else {
 			continue
 		}
-
-		append2(&ops, op)
 	}
 
 	if cfg.Settings.DeleteRemoved {
@@ -169,10 +164,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 		} else {
 			for _, dstEntry := range dstEntries {
 				if _, exists := dstNames[dstEntry.Name()]; !exists {
-					append2(&ops, Operation{
-						opType: opTypeDelete,
-						dstPath: fp.Join(dstPathAbs, dstEntry.Name()),
-					})
+					append2(&ops, makeDeleteOp(fp.Join(dstPathAbs, dstEntry.Name())))
 				}
 			}
 		}

@@ -3,24 +3,29 @@ src = '~/music/'
 # if dst is not specified, . (current directory) is used
 dst = '~/transcode/'
 
+# settings control the behaviour of the tool, defaults are listed below
 [settings]
-# whether to delete files from dst that disappeared from src
+# whether to delete files/directories from dst that are not present in src
 delete_removed = false
 # whether to copy files not matching any rules as-is
-copy_unmatched = false
+copy_unmatched = true
 # whether paths not matching any filters are automatically excluded
 exclude_by_default = false
+# whether to preserve config file even if delete_removed is true
+preserve_config_file = true
 
 # fitlers are used to exclude directories or files from processing
+# depeding on the value of exclude_by_default, they can also be used
+# to selectively include only what you need
 [[filter]]
 # name of every file/directory is matched against this regex,
 # directory names have / appended to distinguish them from files
 # if a directory is excluded, all its contents are excluded as well
-exclude = '^(unsorted|yt)/$'
+exclude = '^unsorted/$'
 
 [[filter]]
 # filters are processed in order, the first filter to match wins
-# "include" filters can be used to overwrite broader "exclude" filters
+# "include" filters can be used to overwrite more broad "exclude" filters
 include = '^README\.txt$'
 
 [[filter]]

@@ -5,8 +5,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 	fp "path/filepath"
+	"strings"
+	"syscall"
+	"time"
 )
 
 type convertOperation struct {
@@ -14,16 +16,20 @@ type convertOperation struct {
 	cmd []string
 }
 
-func makeCommand(cmd []string, src, dst string) *exec.Cmd {
+func makeCommand(ctx context.Context, cmd []string, src, dst string) *exec.Cmd {
 	argv := make([]string, len(cmd))
 	for i := range cmd {
 		r := strings.NewReplacer("@SRC@", src, "@DST@", dst)
 		argv[i] = r.Replace(cmd[i])
 	}
 
-	command := exec.Command(argv[0], argv[1:]...)
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
+	command.WaitDelay = time.Second * 3;
+	command.Cancel = func() error {
+		return command.Process.Signal(syscall.SIGTERM)
+	}
 
 	return command
 }
@@ -43,7 +49,7 @@ func (o convertOperation) Perform(ctx context.Context) error {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	cmd := makeCommand(o.cmd, o.src, tmpFile.Name())
+	cmd := makeCommand(ctx, o.cmd, o.src, tmpFile.Name())
 	if err := cmd.Run(); err != nil {
 		return err
 	}

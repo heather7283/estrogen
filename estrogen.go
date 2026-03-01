@@ -36,7 +36,7 @@ func main() {
 		log.Fatalf("Number of j*bs must be >= 1")
 	}
 
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, ctxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	if cfg, err = ParseConfig(configPath); err != nil {
 		log.Fatalf("Error parsing config: %v", err)
@@ -95,7 +95,12 @@ func main() {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("Received termination signal, exiting")
+			log.Printf("Received termination signal")
+
+			ctxCancel()
+			log.Printf("Waiting for unfinished jobs...")
+			wg.Wait()
+
 			break outer
 		case <-wgDone:
 			log.Printf("No more work to do, exiting")

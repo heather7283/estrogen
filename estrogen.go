@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	sc "strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -43,25 +45,30 @@ func main() {
 		log.Printf("Src dir: %s", cfg.Src)
 		log.Printf("Dst dir: %s", cfg.Dst)
 
-		log.Printf("Loaded %d filters:", len(cfg.Filters))
-		for i, filter := range cfg.Filters {
-			log.Printf("\t%d: type: %v, pattern: %s", i, filter.Type, filter.Regex.String())
-		}
-
-		log.Printf("Loaded %d renames:", len(cfg.Renames))
-		for i, rename := range cfg.Renames {
-			log.Printf("\t%d: pattern: %s, replacement: %s", i, rename.Pattern, rename.Replacement)
-		}
-
-		log.Printf("Loaded %d rules:", len(cfg.Rules))
-		for i, rule := range cfg.Rules {
-			log.Printf("\t%d: src: %s, dst: %s, cmd: %v", i, rule.Src.String(), rule.Dst, rule.Cmd)
-		}
-
 		log.Printf("Settings:")
-		log.Printf("\tdelete_removed: %v", cfg.Settings.DeleteRemoved)
-		log.Printf("\tcopy_unmatched: %v", cfg.Settings.CopyUnmatched)
-		log.Printf("\texclude_by_default: %v", cfg.Settings.ExcludeByDefault)
+		log.Printf("      delete_removed: %v", cfg.Settings.DeleteRemoved)
+		log.Printf("      copy_unmatched: %v", cfg.Settings.CopyUnmatched)
+		log.Printf("      exclude_by_default: %v", cfg.Settings.ExcludeByDefault)
+		log.Printf("      preserve_config_file: %v", cfg.Settings.PreserveConfigFile)
+
+		log.Println("Filters:")
+		for i, filter := range cfg.Filters {
+			log.Printf("%4d: type: %v, pattern: %s",
+				i + 1, filter.Type, filter.Regex.String())
+		}
+
+		log.Println("Renames:")
+		for i, rename := range cfg.Renames {
+			log.Printf("%4d: pattern: %s, replacement: %s",
+				i + 1, rename.Pattern, rename.Replacement)
+		}
+
+		log.Println("Conversion rules:")
+		for i, rule := range cfg.Rules {
+			log.Printf("%4d: src: %s", i + 1, rule.Src.String())
+			log.Printf("      dst: %s", rule.Dst)
+			log.Printf("      cmd: %s", strings.Join(apply(rule.Cmd, sc.QuoteToGraphic), " "))
+		}
 
 		if (validateConfig) {
 			os.Exit(0)
@@ -91,7 +98,7 @@ func main() {
 			log.Printf("Received termination signal, exiting")
 			break outer
 		case <-wgDone:
-			log.Printf("WaitGroup done, exiting")
+			log.Printf("No more work to do, exiting")
 			break outer
 		}
 	}

@@ -49,3 +49,11 @@ func realpath(path string) (string, error) {
 	}
 }
 
+func apply[S ~[]E, E, R any](s S, f func (E) R) []R {
+	res := make([]R, 0, len(s))
+	for _, e := range s {
+		res = append(res, f(e))
+	}
+	return res
+}
+

@@ -17,6 +17,14 @@ const (
 	FilterTypeExclude FilterType = iota
 )
 
+func (t FilterType) String() string {
+	switch t {
+	case FilterTypeInclude: return "include"
+	case FilterTypeExclude: return "exclude"
+	default: return "???????"
+	}
+}
+
 type Filter struct {
 	Type FilterType
 	Regex *re.Regexp

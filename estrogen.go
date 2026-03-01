@@ -16,17 +16,23 @@ var cfg *Config
 func main() {
 	var err error
 
+	log.Default().SetFlags(log.Lshortfile)
+
 	// command line arguments
 	var (
-		validateConfig bool = false
-		configPath string = "./estrogen.toml"
+		validateConfig bool
+		configPath string
+		nJobs uint
 	)
 
 	flag.BoolVar(&validateConfig, "validate", false, "Validate config and exit")
 	flag.StringVar(&configPath, "config", "./estrogen.toml", "Path to config .toml")
+	flag.UintVar(&nJobs, "j", uint(runtime.NumCPU()), "Number of parallel jobs to run")
 	flag.Parse()
 
-	log.Default().SetFlags(log.Lshortfile)
+	if nJobs < 1 {
+		log.Fatalf("Number of j*bs must be >= 1")
+	}
 
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
@@ -62,16 +68,13 @@ func main() {
 		}
 	}
 
-	numWorkers := runtime.NumCPU()
-	//numWorkers := 1
-
-	opsChan := make(chan Operation, numWorkers)
+	opsChan := make(chan Operation, nJobs)
 
 	go Walker(ctx, cfg.Src, opsChan)
 
 	wg := sync.WaitGroup{}
 	wgDone := make(chan bool)
-	for range numWorkers {
+	for range nJobs {
 		wg.Go(func() {
 			Worker(ctx, opsChan)
 		})

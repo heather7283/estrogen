@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	fp "path/filepath"
+	"strings"
 )
 
 func append2[S ~[]E, E any](s *S, e ...E) {
@@ -28,5 +29,23 @@ func tmpfile(dir, name string) (*os.File, error) {
 	}
 
 	return nil, fmt.Errorf("Too many failed attempts")
+}
+
+func realpath(path string) (string, error) {
+	if suffix, hasPrefix := strings.CutPrefix(path, "~/"); hasPrefix {
+		if home, err := os.UserHomeDir(); err != nil {
+			return "", err
+		} else {
+			path = fp.Join(home, suffix)
+		}
+	}
+
+	if path, err := fp.EvalSymlinks(path); err != nil {
+		return "", err
+	} else if path, err := fp.Abs(path); err != nil {
+		return "", err
+	} else {
+		return path, nil
+	}
 }
 

@@ -176,6 +176,8 @@ func ExpandHome(path *string) error {
 }
 
 func ParseConfig(path string) (*Config, error) {
+	var err error
+
 	config := Config{
 		Dst: ".",
 		Settings: Settings{
@@ -189,11 +191,17 @@ func ParseConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("unknown key: %s", undecoded[0])
 	}
 
-	if err := ExpandHome(&config.Src); err != nil {
-		return nil, fmt.Errorf("failed to expand src: %v", err)
+	if len(config.Src) == 0 || len(config.Dst) == 0 {
+		return nil, fmt.Errorf("both src and dst must be specified")
 	}
-	if err := ExpandHome(&config.Dst); err != nil {
-		return nil, fmt.Errorf("failed to expand dst: %v", err)
+
+	config.Src, err = realpath(config.Src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve src: %v", err)
+	}
+	config.Dst, err = realpath(config.Dst)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve dst: %v", err)
 	}
 
 	return &config, nil

@@ -183,7 +183,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	return nil
 }
 
-func Walker(ctx context.Context, origin string, opsChan chan<- Operation) {
+func Walker(ctx context.Context, opsChan chan<- Operation) {
 	defer close(opsChan)
 
 	if err := handleDir(ctx, "", "", opsChan); err != nil {

@@ -78,7 +78,7 @@ func main() {
 	opsChan := make(chan Operation, nJobs)
 
 	wg := sync.WaitGroup{}
-	wg.Go(func() { Walker(ctx, cfg.Src, opsChan) })
+	wg.Go(func() { Walker(ctx, opsChan) })
 	for range nJobs {
 		wg.Go(func() { Worker(ctx, opsChan) })
 	}

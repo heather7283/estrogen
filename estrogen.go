@@ -77,35 +77,27 @@ func main() {
 
 	opsChan := make(chan Operation, nJobs)
 
-	go Walker(ctx, cfg.Src, opsChan)
-
 	wg := sync.WaitGroup{}
-	wgDone := make(chan bool)
+	wg.Go(func() { Walker(ctx, cfg.Src, opsChan) })
 	for range nJobs {
-		wg.Go(func() {
-			Worker(ctx, opsChan)
-		})
+		wg.Go(func() { Worker(ctx, opsChan) })
 	}
+
+	wgDone := make(chan bool)
 	go func() {
 		wg.Wait()
 		close(wgDone)
 	}()
 
-	outer:
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("Received termination signal")
+	select {
+	case <-ctx.Done():
+		log.Printf("Received termination signal")
 
-			ctxCancel()
-			log.Printf("Waiting for unfinished jobs...")
-			wg.Wait()
-
-			break outer
-		case <-wgDone:
-			log.Printf("No more work to do, exiting")
-			break outer
-		}
+		ctxCancel()
+		log.Printf("Waiting for unfinished jobs...")
+		wg.Wait()
+	case <-wgDone:
+		log.Printf("No more work to do, exiting")
 	}
 }
 

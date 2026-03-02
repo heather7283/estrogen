@@ -72,14 +72,19 @@ func isOlderThan(path, reference string) (bool, error) {
 	}
 }
 
-func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Operation) {
+func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Operation) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	srcPathAbs := fp.Join(cfg.Src, srcPath)
 	dstPathAbs := fp.Join(cfg.Dst, dstPath)
 
 	entries, err := os.ReadDir(srcPathAbs)
 	if err != nil {
-		log.Printf("ERROR: failed to ReadDir %s: %v", srcPathAbs, err)
-		return
+		return fmt.Errorf("failed to ReadDir %s: %v", srcPathAbs, err)
 	}
 
 	type dirInfo struct { srcPath, dstPath string }
@@ -99,15 +104,12 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 
 		if entry.IsDir() {
 			if len(dstName) == 0 {
-				fmt.Printf("ERROR: empty dir name after rename (was %s)", srcName)
-				return
+				return fmt.Errorf("empty dir name after rename (was %s)", srcName)
 			} else if strings.ContainsRune(dstName, '/') {
-				fmt.Printf("ERROR: invalid dir name after rename: %s (was %s)", dstName, srcName)
-				return
+				return fmt.Errorf("invalid dir name after rename: %s (was %s)", dstName, srcName)
 			} else if srcName2, exists := dstNames[dstName]; exists {
-				log.Printf("ERROR: duplicate dir name after rename: %s (1st was %s, 2nd was %s)",
+				return fmt.Errorf("duplicate dir name after rename: %s (1st was %s, 2nd was %s)",
 					dstName, srcName, srcName2)
-				return
 			} else {
 				append2(&dirs, dirInfo{fp.Join(srcPath, srcName), fp.Join(dstPath, dstName)})
 				dstNames[dstName] = srcName
@@ -117,16 +119,13 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 
 		dstName, command, hasRule := findRule(dstName)
 		if len(dstName) == 0 {
-			fmt.Printf("ERROR: empty file name after applying rule (was %s)", srcName)
-			return
+			return fmt.Errorf("empty file name after applying rule (was %s)", srcName)
 		} else if strings.ContainsRune(dstName, '/') {
-			fmt.Printf("ERROR: invalid file name after applying rule: %s (was %s)",
+			return fmt.Errorf("invalid file name after applying rule: %s (was %s)",
 				dstName, srcName)
-			return
 		} else if srcName2, exists := dstNames[dstName]; exists {
-			log.Printf("ERROR: duplicate file name after applying rule: %s (1st was %s, 2nd %s)",
+			return fmt.Errorf("duplicate file name after applying rule: %s (1st was %s, 2nd %s)",
 				dstName, srcName, srcName2)
-			return
 		} else {
 			dstNames[dstName] = srcName
 		}
@@ -135,8 +134,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 		dst := fp.Join(dstPathAbs, dstName)
 		if hasRule {
 			if isOlder, err := isOlderThan(dst, src); err != nil {
-				log.Printf("ERROR: %v", err)
-				continue
+				return err
 			} else if isOlder {
 				append2(&ops, makeConvertOp(src, dst, command))
 			} else {
@@ -144,8 +142,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 			}
 		} else if cfg.Settings.CopyUnmatched {
 			if isOlder, err := isOlderThan(dst, src); err != nil {
-				log.Printf("ERROR: %v", err)
-				continue
+				return err
 			} else if isOlder {
 				append2(&ops, makeCopyOp(src, dst))
 			} else {
@@ -159,7 +156,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	if cfg.Settings.DeleteRemoved {
 		if dstEntries, err := os.ReadDir(dstPathAbs); err != nil {
 			if !os.IsNotExist(err) {
-				log.Printf("ERROR: failed to ReadDir %s: %v", dstPathAbs, err)
+				return fmt.Errorf("failed to ReadDir %s: %v", dstPathAbs, err)
 			}
 		} else {
 			for _, dstEntry := range dstEntries {
@@ -178,13 +175,19 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	}
 
 	for _, dir := range dirs {
-		handleDir(ctx, dir.srcPath, dir.dstPath, opsChan)
+		if err := handleDir(ctx, dir.srcPath, dir.dstPath, opsChan); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func Walker(ctx context.Context, origin string, opsChan chan<- Operation) {
 	defer close(opsChan)
 
-	handleDir(ctx, "", "", opsChan)
+	if err := handleDir(ctx, "", "", opsChan); err != nil {
+		log.Printf("ERROR: %v", err)
+	}
 }
 

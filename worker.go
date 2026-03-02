@@ -6,9 +6,16 @@ import (
 )
 
 func Worker(ctx context.Context, opsChan <-chan Operation) {
-	for op := range opsChan {
-		if err := op.Perform(ctx); err != nil {
-			log.Printf("ERROR: %v", err)
+	for {
+		select {
+		case op, ok := <-opsChan:
+			if !ok {
+				return
+			} else if err := op.Perform(ctx); err != nil {
+				log.Printf("ERROR: %v", err)
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }

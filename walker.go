@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -73,12 +74,6 @@ func isOlderThan(path, reference string) (bool, error) {
 }
 
 func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Operation) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
 	entries, err := os.ReadDir(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to ReadDir %s: %v", srcPath, err)
@@ -168,7 +163,12 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	}
 
 	for _, op := range ops {
-		opsChan <- op
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case opsChan <- op:
+			continue
+		}
 	}
 
 	for _, dir := range dirs {
@@ -184,7 +184,9 @@ func Walker(ctx context.Context, opsChan chan<- Operation) {
 	defer close(opsChan)
 
 	if err := handleDir(ctx, cfg.Src, cfg.Dst, opsChan); err != nil {
-		log.Printf("ERROR: %v", err)
+		if !errors.Is(err, context.Canceled) {
+			log.Printf("ERROR: %v", err)
+		}
 	}
 }
 

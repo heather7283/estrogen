@@ -21,12 +21,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Get tag name
-        id: tag
-        run: echo "${{ github.ref }}" | sed 's|^refs/tags/v||' >> $GITHUB_OUTPUT
-
       - name: Download dependencies
-        run: go mod vendor
+        run: |
+          go mod vendor
 
       - name: Build binary
         run: |
@@ -37,7 +34,7 @@ jobs:
         run: |
           # Gentoo expects: <module>-<version>-vendor.tar.xz
           # containing a top-level "vendor/" directory
-          VENDOR_NAME="estrogen-${{ steps.tag.outputs.TAG }}-vendor"
+          VENDOR_NAME="estrogen-$(echo "${{ github.ref }}" | sed 's|^refs/tags/v||')-vendor"
           mkdir -p "${VENDOR_NAME}"
           cp -r vendor "${VENDOR_NAME}/"
           tar -cJf "${VENDOR_NAME}.tar.xz" "${VENDOR_NAME}"

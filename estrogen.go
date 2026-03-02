@@ -18,7 +18,7 @@ var cfg *Config
 func main() {
 	var err error
 
-	log.Default().SetFlags(log.Lshortfile)
+	log.Default().SetFlags(0)
 
 	// command line arguments
 	var (

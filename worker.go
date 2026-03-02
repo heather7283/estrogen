@@ -7,6 +7,10 @@ import (
 
 func Worker(ctx context.Context, opsChan <-chan Operation) {
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
 		select {
 		case op, ok := <-opsChan:
 			if !ok {

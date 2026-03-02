@@ -23,11 +23,7 @@ jobs:
 
       - name: Get tag name
         id: tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Get module name
-        id: mod
-        run: echo "MODULE=$(go list -m)" >> $GITHUB_OUTPUT
+        run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Download dependencies
         run: go mod vendor
@@ -41,8 +37,7 @@ jobs:
         run: |
           # Gentoo expects: <module>-<version>-vendor.tar.xz
           # containing a top-level "vendor/" directory
-          MODULE_SAFE=$(echo "${{ steps.mod.outputs.MODULE }}" | tr '/' '-')
-          VENDOR_NAME="${MODULE_SAFE}-${{ steps.tag.outputs.TAG }}-vendor"
+          VENDOR_NAME="estrogen-${{ steps.tag.outputs.TAG }}-vendor"
           mkdir -p "${VENDOR_NAME}"
           cp -r vendor "${VENDOR_NAME}/"
           tar -cJf "${VENDOR_NAME}.tar.xz" "${VENDOR_NAME}"

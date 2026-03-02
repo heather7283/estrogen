@@ -32,13 +32,13 @@ jobs:
 
       - name: Create vendor tarball
         run: |
-          # Gentoo expects: <module>-<version>-vendor.tar.xz
-          # containing a top-level "vendor/" directory
-          VENDOR_NAME="estrogen-$(echo "${{ github.ref }}" | sed 's|^refs/tags/v||')-vendor"
-          mkdir -p "${VENDOR_NAME}"
-          cp -r vendor "${VENDOR_NAME}/"
-          tar -cJf "${VENDOR_NAME}.tar.xz" "${VENDOR_NAME}"
-          echo "VENDOR_TARBALL=${VENDOR_NAME}.tar.xz" >> $GITHUB_ENV
+          VER="$(echo "${{ github.ref }}" | sed 's|^refs/tags/v||')"
+          DIR="estrogen-${VER}"
+          mkdir -p "${DIR}"
+          mv vendor "${DIR}"
+          ARCHIVE="${DIR}-vendor.tar.xz"
+          tar -cJf "${ARCHIVE}" "${DIR}"
+          echo "VENDOR_TARBALL=${ARCHIVE}" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

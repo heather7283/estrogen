@@ -79,12 +79,9 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	default:
 	}
 
-	srcPathAbs := fp.Join(cfg.Src, srcPath)
-	dstPathAbs := fp.Join(cfg.Dst, dstPath)
-
-	entries, err := os.ReadDir(srcPathAbs)
+	entries, err := os.ReadDir(srcPath)
 	if err != nil {
-		return fmt.Errorf("failed to ReadDir %s: %v", srcPathAbs, err)
+		return fmt.Errorf("failed to ReadDir %s: %v", srcPath, err)
 	}
 
 	type dirInfo struct { srcPath, dstPath string }
@@ -130,8 +127,8 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 			dstNames[dstName] = srcName
 		}
 
-		src := fp.Join(srcPathAbs, srcName)
-		dst := fp.Join(dstPathAbs, dstName)
+		src := fp.Join(srcPath, srcName)
+		dst := fp.Join(dstPath, dstName)
 		if hasRule {
 			if isOlder, err := isOlderThan(dst, src); err != nil {
 				return err
@@ -154,9 +151,9 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 	}
 
 	if cfg.Settings.DeleteRemoved {
-		if dstEntries, err := os.ReadDir(dstPathAbs); err != nil {
+		if dstEntries, err := os.ReadDir(dstPath); err != nil {
 			if !os.IsNotExist(err) {
-				return fmt.Errorf("failed to ReadDir %s: %v", dstPathAbs, err)
+				return fmt.Errorf("failed to ReadDir %s: %v", dstPath, err)
 			}
 		} else {
 			for _, dstEntry := range dstEntries {
@@ -164,7 +161,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 				if cfg.Settings.PreserveConfigFile && name == cfg.ConfigFileName {
 					continue
 				} else if _, exists := dstNames[name]; !exists {
-					append2(&ops, makeDeleteOp(fp.Join(dstPathAbs, name)))
+					append2(&ops, makeDeleteOp(fp.Join(dstPath, name)))
 				}
 			}
 		}
@@ -186,7 +183,7 @@ func handleDir(ctx context.Context, srcPath, dstPath string, opsChan chan<- Oper
 func Walker(ctx context.Context, opsChan chan<- Operation) {
 	defer close(opsChan)
 
-	if err := handleDir(ctx, "", "", opsChan); err != nil {
+	if err := handleDir(ctx, cfg.Src, cfg.Dst, opsChan); err != nil {
 		log.Printf("ERROR: %v", err)
 	}
 }

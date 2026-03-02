@@ -4,8 +4,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*.*.*'
 
 jobs:
   release:
@@ -24,7 +23,7 @@ jobs:
 
       - name: Get tag name
         id: tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "${{ github.ref }}" | sed 's|^refs/tags/v||' >> $GITHUB_OUTPUT
 
       - name: Download dependencies
         run: go mod vendor

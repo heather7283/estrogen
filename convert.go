@@ -34,8 +34,11 @@ func makeCommand(ctx context.Context, cmd []string, src, dst string) *exec.Cmd {
 	return command
 }
 
-func (o convertOperation) Perform(ctx context.Context) error {
+func (o convertOperation) Perform(ctx context.Context, dryRun bool) error {
 	log.Printf("CONV %s -> %s", fp.Base(o.src), fp.Base(o.dst))
+	if dryRun {
+		return nil
+	}
 
 	dstDir := fp.Dir(o.dst)
 	if err := os.MkdirAll(dstDir, 0o700); err != nil {

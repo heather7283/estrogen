@@ -12,8 +12,11 @@ type copyOperation struct {
 	src, dst string
 }
 
-func (o copyOperation) Perform(ctx context.Context) error {
+func (o copyOperation) Perform(ctx context.Context, dryRun bool) error {
 	log.Printf("COPY %s -> %s", fp.Base(o.src), fp.Base(o.dst))
+	if dryRun {
+		return nil
+	}
 
 	dstDir := fp.Dir(o.dst)
 	if err := os.MkdirAll(dstDir, 0o700); err != nil {

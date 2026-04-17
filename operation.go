@@ -5,6 +5,6 @@ import (
 )
 
 type Operation interface {
-	Perform(ctx context.Context) error
+	Perform(ctx context.Context, dryRun bool) error
 }
 

@@ -1,6 +1,6 @@
-# directory to copy files and subdirectories from
+# Directory to copy files and subdirectories from
 src = '~/music/'
-# if dst is not specified, . (current directory) is used
+# If dst is not specified, . (current directory) is used
 dst = '~/transcode/'
 
 # settings control the behaviour of the tool, defaults are listed below
@@ -14,43 +14,45 @@ exclude_by_default = false
 # whether to preserve config file even if delete_removed is true
 preserve_config_file = true
 
-# fitlers are used to exclude directories or files from processing
-# depeding on the value of exclude_by_default, they can also be used
-# to selectively include only what you need
+# Fitlers are used to exclude directories or files from processing.
+# Depeding on the value of exclude_by_default, they can also be used
+# to selectively include only what you need.
 [[filter]]
-# name of every file/directory is matched against this regex,
-# directory names have / appended to distinguish them from files
-# if a directory is excluded, all its contents are excluded as well
+# Name of every file/directory is matched against this regex,
+# directory names have / appended to distinguish them from files.
+# If a directory is excluded, all its contents are excluded as well.
 exclude = '^unsorted/$'
 
 [[filter]]
-# filters are processed in order, the first filter to match wins
-# "include" filters can be used to overwrite more broad "exclude" filters
+# Filters are processed in order, the first filter to match wins.
+# You can use "include" filters to overwrite more broad "exclude" filters.
 include = '^README\.txt$'
 
 [[filter]]
-# this will not match README.txt (see above)
+# This will not match README.txt (see above).
 exclude = '^.*\.(txt|log)$'
 
 [[rename]]
-# renames are applied after filters, but before transcoding rules
-# this one makes paths compatible with android by removing "special" characters
+# Renames are applied after filters, but before transcoding rules.
+# This one makes paths compatible with android by removing "special" characters.
 pattern = '[\?\*:"]'
 replacement = '_'
 
-# rules are matched against filenames post rename, first matched rule is applied
+# Rules are matched against filenames post rename, first matched rule is applied.
 [[rule]]
-# capture groups can be used, see https://pkg.go.dev/regexp#Regexp.Expand
-src = '^(.*)\.flac$'
-dst = '${1}.opus'
-# passed to /bin/sh with src and dst as positional arguments
-cmd = 'ffmpeg -y -hide_banner -nostats -loglevel error -i "$1" -c:a libopus -b:a 192k "$2"'
-
-[[rule]]
+# Capture groups can be used, see https://pkg.go.dev/regexp#Regexp.Expand
 src = '^(.*)\.(png|jpg)'
 dst = '${1}.jpg'
-# argv syntax is supported, special values @SRC@ and @DST@ are replaced
-# in fact, specifying string 'command' as cmd is equivalent to the following:
-# cmd = [ '/bin/sh', '-c', 'command', 'sh', '@SRC@', '@DST@' ]
+# Command is specified as argument list, values @SRC@ and @DST@ are replaced
+# with source and destination file paths respectively.
 cmd = [ 'magick', '@SRC@', '-resize', '512x512>', '@DST@' ]
+
+[[rule]]
+src = '^(.*)\.flac$'
+dst = '${1}.opus'
+# Command can also be specified as a string, in which case it is passed to
+# /bin/sh with source and destination file paths as positional arguments.
+cmd = 'ffmpeg -y -loglevel error -i "$1" "$2"'
+# The above is equivalent to:
+# cmd = [ '/bin/sh', '-c', 'ffmpeg -y -loglevel error -i "$1" "$2"', 'sh', '@SRC@', '@DST@' ]
 

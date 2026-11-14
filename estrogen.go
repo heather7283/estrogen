@@ -28,7 +28,7 @@ func main() {
 		nJobs uint
 	)
 
-	flag.BoolVar(&dryRun, "dry-run", false, "Validate config and exit")
+	flag.BoolVar(&dryRun, "dry-run", false, "Just print what would be done")
 	flag.BoolVar(&validateConfig, "validate", false, "Validate config and exit")
 	flag.StringVar(&configPath, "config", "./estrogen.toml", "Path to config .toml")
 	flag.UintVar(&nJobs, "j", uint(runtime.NumCPU()), "Number of parallel jobs to run")
